@@ -3,4 +3,4 @@ project(SparseSolver)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(SparseSolver main.cpp Utils.cpp Utils.h SparseSolver.cpp SparseSolver.h)
+add_executable(SparseSolver main.cpp Utils.cpp Utils.h SparseSolver.cpp SparseSolver.h TriangularSolver.cpp TriangularSolver.h NaiveTSolver.cpp NaiveTSolver.h)

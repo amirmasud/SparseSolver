@@ -1,5 +1,5 @@
 //
-// Created by iman on 1/7/19.
+// Created by Amir Masud on 1/7/19.
 //
 
 #include "Utils.h"
@@ -7,28 +7,45 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <cassert>
+
+//TODO : think of better clone.
 
 namespace utils {
 
-Matrix::Matrix(utils::Format format) : m_format(format) {
+Matrix::Matrix(utils::Format format, size_t m_rowCount, size_t m_colCount) :
+        m_format(format), rowCount(m_rowCount), colCount(m_colCount) {
 }
 Format Matrix::getFormat() const {
     return m_format;
 }
+Matrix* Matrix::clone() const {
+    auto newMatrix = new Matrix(m_format, rowCount, colCount);
+    newMatrix->cloneAllocations(this);
+    return newMatrix;
+}
 
 //template <class T>
-CSCMatrix::CSCMatrix(size_t m_colCount, size_t m_nnz,
-                     int *m_Lp, int *m_Li, double *m_Lx) :
-        Matrix(Format::CSC), colCount(m_colCount), nnz(m_nnz),
-        Lp(m_Lp), Li(m_Li), Lx(m_Lx) {
+CSCMatrix::CSCMatrix(size_t m_rowCount, size_t m_colCount,
+                     size_t m_nnz, size_t *m_Lp, size_t *m_Li, double *m_Lx) :
+        Matrix(Format::CSC, m_rowCount, m_colCount),
+        nnz(m_nnz), Lp(m_Lp), Li(m_Li), Lx(m_Lx) {
 }
-CSCMatrix::CSCMatrix() : Matrix(Format::CSC),
+CSCMatrix::CSCMatrix() : Matrix(Format::CSC, 0, 0),
                          Lp(nullptr), Li(nullptr), Lx(nullptr) {
 }
+CSCMatrix::CSCMatrix(const utils::CSCMatrix &cscMatrix) : Matrix(cscMatrix) {
+    Lp = new size_t[colCount];
+    std::copy(cscMatrix.Lp, cscMatrix.Lp + colCount, Lp);
+    Li = new size_t[nnz];
+    std::copy(cscMatrix.Li, cscMatrix.Li + nnz, Li);
+    Lx = new double[nnz];
+    std::copy(cscMatrix.Lx, cscMatrix.Lx + nnz, Lx);
+}
 //template <class T>
-CSCMatrix* CSCMatrix::create(size_t colCount, size_t nnz,
-                             int *Lp, int *Li, double *Lx) {
-    auto cscMatrix = new CSCMatrix(colCount, nnz, Lp, Li, Lx);
+CSCMatrix* CSCMatrix::create(size_t rowCount, size_t colCount, size_t nnz,
+                             size_t *Lp, size_t *Li, double *Lx) {
+    auto cscMatrix = new CSCMatrix(rowCount, colCount, nnz, Lp, Li, Lx);
     cscMatrix->init();
     return cscMatrix;
 }
@@ -46,6 +63,33 @@ void CSCMatrix::initWithFile(const std::string &name) {
     matrix_hf::readMatrix(name, rowCount, colCount, nnz, Lp, Li, Lx);
 }
 
+std::vector<double> CSCMatrix::operator*(const CSCVector &cscVector) const {
+    auto x = cscVector.v;
+    size_t n = rowCount;
+    std::vector<double> ans(n, 0.0);
+    assert(Lp && x);
+    for (size_t j = 0; j < n; ++j)
+        for (size_t p = Lp[j]; p < Lp[j + 1]; ++p)
+            ans[Li[p]] += Lx[p] * x[j];
+    return ans;
+}
+
+void CSCMatrix::cloneAllocations(const CSCMatrix *cscMatrix) {
+    Matrix::cloneAllocations(cscMatrix);
+    Lp = new size_t[cscMatrix->colCount];
+    std::copy(cscMatrix->Lp, cscMatrix->Lp + colCount, Lp);
+    Li = new size_t[cscMatrix->nnz];
+    std::copy(cscMatrix->Li, cscMatrix->Li + nnz, Li);
+    Lx = new double[cscMatrix->nnz];
+    std::copy(cscMatrix->Lx, cscMatrix->Lx + nnz, Lx);
+}
+Matrix* CSCMatrix::clone() const {
+    auto newCSCMatrix = CSCMatrix::create(rowCount, colCount, nnz,
+                                          nullptr, nullptr, nullptr);
+    newCSCMatrix->cloneAllocations(this);
+    return newCSCMatrix;
+}
+
 CSCMatrix::~CSCMatrix() {
     delete Lp;
     delete Li;
@@ -54,10 +98,28 @@ CSCMatrix::~CSCMatrix() {
 
 CSCVector::CSCVector() : CSCMatrix() {
 }
+CSCVector::CSCVector(size_t rowCount, size_t colCount, size_t nnz, size_t *Lp,
+                     size_t *Li, double *Lx, double *m_v) :
+                     CSCMatrix(rowCount, colCount, nnz, Lp, Li, Lx),
+                     v(m_v) {
+}
+CSCVector::CSCVector(const utils::CSCVector &cscVector) : CSCMatrix(cscVector) {
+    v = new double[rowCount];
+    std::copy(cscVector.v, cscVector.v + rowCount, v);
+}
+CSCVector* CSCVector::create(size_t rowCount, size_t colCount, size_t nnz,
+                             size_t *Lp, size_t *Li, double *Lx, double *m_v) {
+    auto csvVector = new CSCVector(rowCount, colCount, nnz, Lp, Li, Lx, m_v);
+    csvVector->init();
+    return csvVector;
+}
 CSCVector* CSCVector::createFromFile(const std::string &name) {
     auto cscVector = new CSCVector();
     cscVector->initWithFile(name);
     return cscVector;
+}
+void CSCVector::init() {
+    CSCMatrix::init();
 }
 void CSCVector::initWithFile(const std::string &name) {
     CSCMatrix::initWithFile(name);
@@ -66,8 +128,25 @@ void CSCVector::initWithFile(const std::string &name) {
 void CSCVector::initVector() {
     v = new double[rowCount];
     std::fill_n(v, rowCount, 0);
-    for (size_t i = 0; i < rowCount; ++i)
+    for (size_t i = 0; i < nnz; ++i)
         v[Li[i]] = Lx[i];
+}
+
+void CSCVector::cloneAllocations(const CSCVector *cscVector) {
+    CSCMatrix::cloneAllocations(cscVector);
+    v = new double[cscVector->rowCount];
+    std::copy(cscVector->v, cscVector->v + rowCount, v);
+}
+Matrix* CSCVector::clone() const {
+    auto newCSCVector = CSCVector::create(rowCount, colCount, nnz,
+                                          nullptr,nullptr, nullptr, nullptr);
+    newCSCVector->cloneAllocations(this);
+    return newCSCVector;
+}
+
+void CSCVector::dump() {
+    for (size_t i = 0; i < 100; ++i)
+        std::cout << v[i] << std::endl;
 }
 
 CSCVector::~CSCVector() {
@@ -80,7 +159,7 @@ CSCVector::~CSCVector() {
 namespace matrix_hf {
 
 bool readMatrix(const std::string &fName, size_t  &rowCount, size_t &colCount,
-                size_t &NNZ, int* &col, int* &row, double* &val) {
+                size_t &NNZ, size_t * &col, size_t * &row, double* &val) {
     /*This function reads the input matrix from "fName" file and
      * allocate memory for matrix A, L and U.
      * - The input file is a coordinate version and e
@@ -144,9 +223,9 @@ bool readMatrix(const std::string &fName, size_t  &rowCount, size_t &colCount,
     }
     if(colCount <= 0 || NNZ <= 0)
         return false;
-    col = new int[colCount + 1]();
+    col = new size_t[colCount + 1]();
     // colL = new int[colCount + 1]; colU = new int[colCount + 1];
-    row = new int[NNZ];
+    row = new size_t[NNZ];
     // rowL = new int[factorSize]; rowU = new int[factorSize];
     val = new double[NNZ];
     // valL = new double[factorSize]; valU = new double[factorSize];

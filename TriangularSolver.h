@@ -15,6 +15,8 @@ protected:
 
     const utils::Matrix *m_L, *m_b;
     utils::Matrix *m_result;
+
+    bool evaluateWithCSCFormat();
 };
 
 

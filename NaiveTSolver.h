@@ -10,16 +10,15 @@
 
 class NaiveTSolver : public TriangularSolver {
 public:
-    static NaiveTSolver *create(utils::Matrix *L, utils::Matrix *b);
+    static NaiveTSolver *create(const utils::Matrix *L, const utils::Matrix *b);
     void solve() override;
     bool evaluate() override;
 
 private:
-    NaiveTSolver(utils::Matrix *L, utils::Matrix *b);
+    NaiveTSolver(const utils::Matrix *L, const utils::Matrix *b);
     void init();
 
     void solveWithCSCFormat();
-    bool evaluateWithCSCFormat();
 };
 
 

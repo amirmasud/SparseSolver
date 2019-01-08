@@ -3,4 +3,4 @@ project(SparseSolver)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(SparseSolver main.cpp Utils.cpp Utils.h)
+add_executable(SparseSolver main.cpp Utils.cpp Utils.h SparseSolver.cpp SparseSolver.h)

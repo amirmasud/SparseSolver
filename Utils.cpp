@@ -17,19 +17,23 @@ Format Matrix::getFormat() const {
 }
 
 //template <class T>
-CSCMatrix::CSCMatrix(unsigned int m_n, int *m_Lp, int *m_Li, double *m_Lx) :
-        Matrix(Format::CSC), n(m_n), Lp(m_Lp), Li(m_Li), Lx(m_Lx) {
+CSCMatrix::CSCMatrix(size_t m_colCount, size_t m_nnz,
+                     int *m_Lp, int *m_Li, double *m_Lx) :
+        Matrix(Format::CSC), colCount(m_colCount), nnz(m_nnz),
+        Lp(m_Lp), Li(m_Li), Lx(m_Lx) {
 }
-CSCMatrix::CSCMatrix() : Matrix(Format::CSC) {
+CSCMatrix::CSCMatrix() : Matrix(Format::CSC),
+                         Lp(nullptr), Li(nullptr), Lx(nullptr) {
 }
 //template <class T>
-CSCMatrix* CSCMatrix::create(unsigned int n, int *Lp, int *Li, double *Lx) {
-    auto cscMatrix = new CSCMatrix(n, Lp, Li, Lx);
+CSCMatrix* CSCMatrix::create(size_t colCount, size_t nnz,
+                             int *Lp, int *Li, double *Lx) {
+    auto cscMatrix = new CSCMatrix(colCount, nnz, Lp, Li, Lx);
     cscMatrix->init();
     return cscMatrix;
 }
 //template <class T>
-CSCMatrix* CSCMatrix::readFromFile(const std::string &name) {
+CSCMatrix* CSCMatrix::createFromFile(const std::string &name) {
     auto cscMatrix = new CSCMatrix();
     cscMatrix->initWithFile(name);
     return cscMatrix;
@@ -39,13 +43,35 @@ void CSCMatrix::init() {
 }
 //template <class T>
 void CSCMatrix::initWithFile(const std::string &name) {
-    matrix_hf::readMatrix(name, this->n, this->nnz, this->Lp, this->Li, this->Lx);
+    matrix_hf::readMatrix(name, rowCount, colCount, nnz, Lp, Li, Lx);
 }
 
-void CSCMatrix::print() {
-    std::cout << Lp[3] << std::endl;
-    std::cout << Li[3] << std::endl;
-    std::cout << Lx[3] << std::endl;
+CSCMatrix::~CSCMatrix() {
+    delete Lp;
+    delete Li;
+    delete Lx;
+}
+
+CSCVector::CSCVector() : CSCMatrix() {
+}
+CSCVector* CSCVector::createFromFile(const std::string &name) {
+    auto cscVector = new CSCVector();
+    cscVector->initWithFile(name);
+    return cscVector;
+}
+void CSCVector::initWithFile(const std::string &name) {
+    CSCMatrix::initWithFile(name);
+    initVector();
+}
+void CSCVector::initVector() {
+    v = new double[rowCount];
+    std::fill_n(v, rowCount, 0);
+    for (size_t i = 0; i < rowCount; ++i)
+        v[Li[i]] = Lx[i];
+}
+
+CSCVector::~CSCVector() {
+    delete v;
 }
 
 }
@@ -53,8 +79,8 @@ void CSCMatrix::print() {
 
 namespace matrix_hf {
 
-bool readMatrix(const std::string &fName, size_t &n, size_t &NNZ, int* &col,
-                int* &row, double* &val) {
+bool readMatrix(const std::string &fName, size_t  &rowCount, size_t &colCount,
+                size_t &NNZ, int* &col, int* &row, double* &val) {
     /*This function reads the input matrix from "fName" file and
      * allocate memory for matrix A, L and U.
      * - The input file is a coordinate version and e
@@ -112,14 +138,14 @@ bool readMatrix(const std::string &fName, size_t &n, size_t &NNZ, int* &col,
         std::getline(inFile, line);
     }
     std::istringstream issDim(line);
-    if (!(issDim >> n >> n >> NNZ)){
+    if (!(issDim >> rowCount >> colCount >> NNZ)){
         std::cout<<"The matrix dimension is missing\n";
         return false;
     }
-    if(n <= 0 || NNZ <= 0)
+    if(colCount <= 0 || NNZ <= 0)
         return false;
-    col = new int[n + 1]();
-    // colL = new int[n + 1]; colU = new int[n + 1];
+    col = new int[colCount + 1]();
+    // colL = new int[colCount + 1]; colU = new int[colCount + 1];
     row = new int[NNZ];
     // rowL = new int[factorSize]; rowU = new int[factorSize];
     val = new double[NNZ];
@@ -135,7 +161,7 @@ bool readMatrix(const std::string &fName, size_t &n, size_t &NNZ, int* &col,
         inFile>>x;x--;
         inFile>>y;y--;//zero indexing
         inFile>>value;
-        if(y > n)
+        if(y > colCount)
             return false;
         if(y==i){
             val[nnzCnt]=value;
@@ -152,7 +178,7 @@ bool readMatrix(const std::string &fName, size_t &n, size_t &NNZ, int* &col,
         }
 
     }
-    col[n]= col[n - 1] + colCnt;//last col
+    col[colCount]= col[colCount - 1] + colCnt;//last col
 
     return true;
 }

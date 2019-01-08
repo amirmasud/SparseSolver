@@ -2,8 +2,6 @@
 #include "Utils.h"
 
 int main() {
-    auto *cscMatrix = utils::CSCMatrix::readFromFile("b.mtx");
-    cscMatrix->print();
-    std::cout << "salam" << std::endl;
+    auto *cscMatrix = utils::CSCMatrix::createFromFile("b.mtx");
     return 0;
 }

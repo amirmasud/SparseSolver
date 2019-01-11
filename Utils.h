@@ -132,6 +132,7 @@ public:
     size_t supNo; // number of super nodes
 
     void initSupernodes();
+    void initSupernodesFaster();
 protected:
     void initWithFile(const std::string &name) override;
 };

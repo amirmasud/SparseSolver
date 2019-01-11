@@ -1,31 +1,31 @@
 //
-// Created by Amir Masud on 1/8/19.
+// Created by Amir Masud on 1/11/19.
 //
 
-//TODO: error handling
-
 #include <cassert>
-#include <iostream>
 #include <chrono>
-#include "NaiveTSolver.h"
+#include <iostream>
+#include "SupernodalTSolver.h"
 
-NaiveTSolver::NaiveTSolver(const utils::Matrix *L, const utils::Matrix *b) :
+SupernodalTSolver::SupernodalTSolver(const utils::Matrix *L, const utils::Matrix *b) :
         TriangularSolver(L, b) {
 }
-NaiveTSolver* NaiveTSolver::create(const utils::Matrix *L, const utils::Matrix *b) {
-    auto solver = new NaiveTSolver(L, b);
+SupernodalTSolver* SupernodalTSolver::create(const utils::Matrix *L, const utils::Matrix *b) {
+    auto solver = new SupernodalTSolver(L, b);
     solver->init();
     return solver;
 }
-void NaiveTSolver::init() {
+void SupernodalTSolver::init() {
 }
 
-void NaiveTSolver::solve() {
+void SupernodalTSolver::solve() {
     solveWithCSCFormat();
 }
-void NaiveTSolver::solveWithCSCFormat() {
-    auto cscL = dynamic_cast<const utils::CSCMatrix *>(m_L);
+
+void SupernodalTSolver::solveWithCSCFormat() {
+    auto cscL = dynamic_cast<const utils::SupernodalCSCMatrix *>(m_L);
     auto cscB = dynamic_cast<const utils::CSCVector *>(m_b);
+
     m_result = cscB->clone();
 
     auto Li = cscL->Li;
@@ -34,6 +34,8 @@ void NaiveTSolver::solveWithCSCFormat() {
     auto x = dynamic_cast<utils::CSCVector *>(m_result)->v;
 
     assert(Lp && Li && x);
+
+
     auto start = std::chrono::system_clock::now();
     for (int j = 0; j < cscL->rowCount; ++j) {
         if (x[j] != 0) {
@@ -43,9 +45,9 @@ void NaiveTSolver::solveWithCSCFormat() {
         }
     }
     auto end = std::chrono::system_clock::now();
-    std::cout <<"Naive solve time:"<< (end - start).count() << std::endl;
+    std::cout <<"Supernodal solve time:    "<< (end - start).count() << std::endl;
 }
 
-bool NaiveTSolver::evaluate() {
+bool SupernodalTSolver::evaluate() {
     return evaluateWithCSCFormat();
 }

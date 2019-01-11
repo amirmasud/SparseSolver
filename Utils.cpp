@@ -8,7 +8,8 @@
 #include <iostream>
 #include <sstream>
 #include <cassert>
-
+#include <chrono>
+#include <algorithm>
 //TODO : think of better clone.
 
 
@@ -201,11 +202,16 @@ namespace utils {
 
     void SupernodalCSCMatrix::initWithFile(const std::string &name) {
         AugmentedCSCMatrix::initWithFile(name);
-//        initSupernodes(); // it is commented because the supernode detection time should be considered as runtime
+        auto start = std::chrono::system_clock::now();
+        // super node detection
+//        initSupernodes();
+        initSupernodesFaster();
+        auto end = std::chrono::system_clock::now();
+        std::cout<<"Supernode detection time: "<< (end - start).count() <<std::endl;
     }
 
 
-    void SupernodalCSCMatrix::initSupernodes() {
+    void SupernodalCSCMatrix::initSupernodes(){
         supNo = 0;
         sup2col.resize(colCount); // initially all column can be a separate node;
         sup2col[0] = 0;
@@ -234,6 +240,32 @@ namespace utils {
         sup2col.resize(supNo); // free extra memory
     }
 
+    void SupernodalCSCMatrix::initSupernodesFaster(){
+        supNo = 0;
+        sup2col.resize(colCount); // initially all column can be a separate node;
+        sup2col[0] = 0;
+        bool similar_col = true;
+        size_t newColComponentsNo;
+        for (size_t col = 1; col < colCount; ++col) {
+            newColComponentsNo = Lcomp[col].size();
+
+            if (newColComponentsNo == Lcomp[col-1].size()){
+
+                // all components should be the same except start of the first component
+                if (!std::equal(&(Lcomp[col-1][0])+1,&(Lcomp[col-1][newColComponentsNo]), &(Lcomp[col][0])+1))
+                    similar_col = false;
+
+                // also last row of first components should be equal
+                if (Lcomp[col][0].second != Lcomp[col-1][0].second)
+                    similar_col = false;
+                if (!similar_col) {
+                    supNo++;
+                    sup2col[supNo] = col;
+                }
+            }
+        }
+        sup2col.resize(supNo); // free extra memory
+    }
 }
 
 namespace matrix_hf {

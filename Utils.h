@@ -156,6 +156,17 @@ bool readMatrix(const std::string &fName, size_t &rowCount, size_t &colCount,
 bool readAugmentedMatrix(const std::string &fName, size_t &rowCount, size_t &colCount,
                              size_t &NNZ, size_t *&col, size_t *&row, double *&val,
                              vector<pair<size_t, size_t>> *&Lcomp);
+
+void dlsolve_blas_nonUnit ( int ldm, int ncol, double *M, double *rhs );//general triangular solver
+
+void dmatvec_blas (
+        int ldm,	/* in -- leading dimension of M */
+        int nrow,	/* in */
+        int ncol,	/* in */
+        double *M,	/* in */
+        double *vec,	/* in */
+        double *Mxvec	/* in/out */
+);
 }
 
 #endif //SPARSE_SOLVER_UTILS_H
